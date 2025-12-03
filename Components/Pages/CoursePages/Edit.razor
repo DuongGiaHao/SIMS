@@ -1,0 +1,143 @@
+﻿@page "/courses/edit"
+@using Microsoft.EntityFrameworkCore
+@using SIMS.Data
+@inject IDbContextFactory<SIMS.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit Course</PageTitle>
+
+<div class="container-fluid p-4">
+    <div class="d-flex align-items-center mb-4">
+        <a href="/courses" class="btn btn-outline-secondary me-3"><i class="bi bi-arrow-left"></i></a>
+        <h1 class="mb-0"><i class="bi bi-pencil text-primary"></i> Edit Course</h1>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    @if (Course is null)
+                    {
+                        <div>Loading...</div>
+                    }
+                    else
+                    {
+                        <EditForm method="post" Model="Course" OnValidSubmit="UpdateCourse" FormName="edit" Enhance>
+                            <DataAnnotationsValidator />
+                            <ValidationSummary role="alert" />
+                            <input type="hidden" name="Course.Id" value="@Course.Id" />
+
+                            <div class="form-floating mb-3">
+                                <InputText id="name" @bind-Value="Course.Name" class="form-control" placeholder="Name" />
+                                <label>Name</label>
+                                <ValidationMessage For="() => Course.Name" class="text-danger" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="subjectid" class="form-label">Subject</label>
+                                <InputSelect id="subjectid" @bind-Value="Course.SubjectId" class="form-select">
+                                    <option value="">-- Select Subject --</option>
+                                    @foreach (var subject in Subjects)
+                                    {
+                                        <option value="@subject.Id">@subject.Name</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="() => Course.SubjectId" class="text-danger" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="semesterid" class="form-label">Semester</label>
+                                <InputSelect id="semesterid" @bind-Value="Course.SemesterId" class="form-select">
+                                    <option value="">-- Select Semester --</option>
+                                    @foreach (var semester in Semesters)
+                                    {
+                                        <option value="@semester.Id">@semester.Name</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="() => Course.SemesterId" class="text-danger" />
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="lectureid" class="form-label">Lecture</label>
+                                <InputSelect id="lectureid" @bind-Value="Course.LectureId" class="form-select">
+                                    <option value="">-- Select Lecture --</option>
+                                    @foreach (var lecture in Lectures)
+                                    {
+                                        <option value="@lecture.Id">@lecture.Name</option>
+                                    }
+                                </InputSelect>
+                                <ValidationMessage For="() => Course.LectureId" class="text-danger" />
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">Save</button>
+                                <a class="btn btn-outline-secondary" href="/courses">Cancel</a>
+                            </div>
+                        </EditForm>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div>
+    <a href="/courses">Back to List</a>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private Course? Course { get; set; }
+
+    public List<Subject> Subjects { get; set; } = new();
+    public List<Semester> Semesters { get; set; } = new();
+    public List<ApplicationUser> Lectures { get; set; } = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Course ??= await context.Courses.FirstOrDefaultAsync(m => m.Id == Id);
+        Subjects = await context.Subjects.ToListAsync();
+        Semesters = await context.Semesters.ToListAsync();
+        Lectures = await context.Users.ToListAsync();
+
+        if (Course is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    private async Task UpdateCourse()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Course!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!CourseExists(Course!.Id))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/courses");
+    }
+
+    private bool CourseExists(int id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Courses.Any(e => e.Id == id);
+    }
+}

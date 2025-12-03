@@ -1,0 +1,55 @@
+﻿@page "/subjects/create"
+@using Microsoft.EntityFrameworkCore
+@using SIMS.Data
+@inject IDbContextFactory<SIMS.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Create Subject</PageTitle>
+
+<div class="container-fluid p-4">
+    <div class="d-flex align-items-center mb-4">
+        <a href="/subjects" class="btn btn-outline-secondary me-3"><i class="bi bi-arrow-left"></i></a>
+        <h1 class="mb-0"><i class="bi bi-plus-circle text-primary"></i> Create New Subject</h1>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <EditForm method="post" Model="Subject" OnValidSubmit="AddSubject" FormName="create" Enhance>
+                        <DataAnnotationsValidator />
+                        <ValidationSummary class="text-danger" role="alert"/>
+                        <div class="mb-3">
+                            <label for="code" class="form-label">Code:</label>
+                            <InputNumber id="code" @bind-Value="Subject.Code" class="form-control" />
+                            <ValidationMessage For="() => Subject.Code" class="text-danger" />
+                        </div>
+                        <div class="mb-3">
+                            <label for="name" class="form-label">Name:</label>
+                            <InputText id="name" @bind-Value="Subject.Name" class="form-control" />
+                            <ValidationMessage For="() => Subject.Name" class="text-danger" />
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">Create</button>
+                            <a class="btn btn-outline-secondary" href="/subjects">Cancel</a>
+                        </div>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromForm]
+    private Subject Subject { get; set; } = new();
+
+    // To protect from overposting attacks, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task AddSubject()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Subjects.Add(Subject);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/subjects");
+    }
+}

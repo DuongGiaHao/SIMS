@@ -1,0 +1,57 @@
+﻿@page "/departments/delete"
+@using Microsoft.EntityFrameworkCore
+@using SIMS.Data
+@inject IDbContextFactory<SIMS.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Delete Department</PageTitle>
+
+<div class="container-fluid p-4">
+    <div class="d-flex align-items-center mb-4">
+        <a href="/departments" class="btn btn-outline-secondary me-3"><i class="bi bi-arrow-left"></i></a>
+        <h1 class="mb-0"><i class="bi bi-trash text-primary"></i> Delete Department</h1>
+    </div>
+
+    @if (department is null)
+    {
+        <div class="card shadow-sm"><div class="card-body">Loading...</div></div>
+    }
+    else
+    {
+        <div class="card shadow-sm"><div class="card-body">
+            <div class="alert alert-danger">Are you sure you want to delete department <strong>@department.Name</strong>?</div>
+            <EditForm method="post" Model="department" OnValidSubmit="DeleteDepartment" FormName="delete" Enhance>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                    <a class="btn btn-outline-secondary" href="/departments">Cancel</a>
+                </div>
+            </EditForm>
+        </div></div>
+    }
+</div>
+
+@code {
+    private Department? department;
+
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        department = await context.Departments.FirstOrDefaultAsync(m => m.Id == Id);
+
+        if (department is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    private async Task DeleteDepartment()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Departments.Remove(department!);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/departments");
+    }
+}

@@ -1,0 +1,96 @@
+﻿@page "/semesters/edit"
+@using Microsoft.EntityFrameworkCore
+@using SIMS.Data
+@inject IDbContextFactory<SIMS.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Edit Semester</PageTitle>
+
+<div class="container-fluid p-4">
+    <div class="d-flex align-items-center mb-4">
+        <a href="/semesters" class="btn btn-outline-secondary me-3"><i class="bi bi-arrow-left"></i></a>
+        <h1 class="mb-0"><i class="bi bi-pencil text-primary"></i> Edit Semester</h1>
+    </div>
+
+    @if (Semester is null)
+    {
+        <div class="card shadow-sm"><div class="card-body">Loading...</div></div>
+    }
+    else
+    {
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <EditForm method="post" Model="Semester" OnValidSubmit="UpdateSemester" FormName="edit" Enhance>
+                            <DataAnnotationsValidator />
+                            <ValidationSummary role="alert"/>
+                            <input type="hidden" name="Semester.Id" value="@Semester.Id" />
+                            <div class="mb-3">
+                                <label for="name" class="form-label">Name:</label>
+                                <InputText id="name" @bind-Value="Semester.Name" class="form-control" />
+                                <ValidationMessage For="() => Semester.Name" class="text-danger" />
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="submit" class="btn btn-primary">Save</button>
+                                <a class="btn btn-outline-secondary" href="/semesters">Cancel</a>
+                            </div>
+                        </EditForm>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    [SupplyParameterFromForm]
+    private Semester? Semester { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        Semester ??= await context.Semesters.FirstOrDefaultAsync(m => m.Id == Id);
+
+        if (Semester is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more information, see https://learn.microsoft.com/aspnet/core/blazor/forms/#mitigate-overposting-attacks.
+    private async Task UpdateSemester()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Attach(Semester!).State = EntityState.Modified;
+
+        try
+        {
+            await context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!SemesterExists(Semester!.Id))
+            {
+                NavigationManager.NavigateTo("notfound");
+            }
+            else
+            {
+                throw;
+            }
+        }
+
+        NavigationManager.NavigateTo("/semesters");
+    }
+
+    private bool SemesterExists(int id)
+    {
+        using var context = DbFactory.CreateDbContext();
+        return context.Semesters.Any(e => e.Id == id);
+    }
+}

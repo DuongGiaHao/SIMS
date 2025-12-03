@@ -1,0 +1,137 @@
+﻿@page "/my-enrollments"
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Identity
+@using Microsoft.AspNetCore.Authorization
+@using SIMS.Data
+@rendermode InteractiveServer
+@attribute [Authorize(Roles = "Student")]
+@inject IDbContextFactory<ApplicationDbContext> DbFactory
+@inject AuthenticationStateProvider AuthenticationStateProvider
+@inject UserManager<ApplicationUser> UserManager
+
+<PageTitle>My Enrollments</PageTitle>
+
+<div class="container-fluid p-4">
+    <div class="mb-4">
+        <h1 class="mb-2"><i class="bi bi-journal-bookmark text-primary"></i> My Enrollments</h1>
+        <p class="text-muted">View all courses you are enrolled in</p>
+    </div>
+
+    @if (IsLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-3 text-muted">Loading your enrollments...</p>
+        </div>
+    }
+    else if (!Enrollments.Any())
+    {
+        <div class="card shadow-sm">
+            <div class="card-body text-center py-5">
+                <i class="bi bi-inbox display-1 text-muted"></i>
+                <h4 class="mt-3">No Enrollments Yet</h4>
+                <p class="text-muted">You are not enrolled in any courses at the moment.</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="row g-4">
+            @foreach (var enrollment in Enrollments)
+            {
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="card h-100 shadow-sm hover-shadow transition">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="card-title mb-0">
+                                <i class="bi bi-book"></i> @enrollment.Course.Name
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <p class="mb-2">
+                                    <strong><i class="bi bi-journal-text text-primary"></i> Subject:</strong><br />
+                                    <span class="ms-3">@enrollment.Course.Subject.Name</span>
+                                </p>
+                                <p class="mb-2">
+                                    <strong><i class="bi bi-calendar3 text-success"></i> Semester:</strong><br />
+                                    <span class="ms-3">@enrollment.Course.Semester.Name</span>
+                                </p>
+                                <p class="mb-0">
+                                    <strong><i class="bi bi-person-badge text-info"></i> Lecturer:</strong><br />
+                                    <span class="ms-3">@enrollment.Course.Lecture.Name</span>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="card-footer bg-light">
+                            <small class="text-muted">
+                                <i class="bi bi-calendar-check"></i> Enrolled
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="mt-4">
+            <div class="alert alert-info">
+                <i class="bi bi-info-circle"></i>
+                <strong>Total Enrollments:</strong> @Enrollments.Count course(s)
+            </div>
+        </div>
+    }
+</div>
+
+<style>
+    .hover-shadow {
+        transition: all 0.3s ease;
+    }
+
+        .hover-shadow:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+        }
+
+    .transition {
+        transition: all 0.3s ease;
+    }
+
+    .card-header {
+        border-bottom: 3px solid rgba(255, 255, 255, 0.3);
+    }
+</style>
+
+@code {
+    private List<Enrollment> Enrollments { get; set; } = new();
+    private bool IsLoading { get; set; } = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+
+        if (user.Identity?.IsAuthenticated == true)
+        {
+            var currentUser = await UserManager.GetUserAsync(user);
+            if (currentUser != null)
+            {
+                using var context = DbFactory.CreateDbContext();
+                Enrollments = await context.Enrollments
+                    .Include(e => e.Course)
+                        .ThenInclude(c => c.Subject)
+                    .Include(e => e.Course)
+                        .ThenInclude(c => c.Semester)
+                    .Include(e => e.Course)
+                        .ThenInclude(c => c.Lecture)
+                    .Where(e => e.StudentId == currentUser.Id)
+                    .OrderBy(e => e.Course.Semester.Name)
+                    .ThenBy(e => e.Course.Name)
+                    .AsNoTracking()
+                    .ToListAsync();
+            }
+        }
+
+        IsLoading = false;
+    }
+}

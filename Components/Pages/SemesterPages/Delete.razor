@@ -1,0 +1,57 @@
+﻿@page "/semesters/delete"
+@using Microsoft.EntityFrameworkCore
+@using SIMS.Data
+@inject IDbContextFactory<SIMS.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Delete Semester</PageTitle>
+
+<div class="container-fluid p-4">
+    <div class="d-flex align-items-center mb-4">
+        <a href="/semesters" class="btn btn-outline-secondary me-3"><i class="bi bi-arrow-left"></i></a>
+        <h1 class="mb-0"><i class="bi bi-trash text-primary"></i> Delete Semester</h1>
+    </div>
+
+    @if (semester is null)
+    {
+        <div class="card shadow-sm"><div class="card-body">Loading...</div></div>
+    }
+    else
+    {
+        <div class="card shadow-sm"><div class="card-body">
+            <div class="alert alert-danger">Are you sure you want to delete semester <strong>@semester.Name</strong>?</div>
+            <EditForm method="post" Model="semester" OnValidSubmit="DeleteSemester" FormName="delete" Enhance>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                    <a class="btn btn-outline-secondary" href="/semesters">Cancel</a>
+                </div>
+            </EditForm>
+        </div></div>
+    }
+</div>
+
+@code {
+    private Semester? semester;
+
+    [SupplyParameterFromQuery]
+    private int Id { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using var context = DbFactory.CreateDbContext();
+        semester = await context.Semesters.FirstOrDefaultAsync(m => m.Id == Id);
+
+        if (semester is null)
+        {
+            NavigationManager.NavigateTo("notfound");
+        }
+    }
+
+    private async Task DeleteSemester()
+    {
+        using var context = DbFactory.CreateDbContext();
+        context.Semesters.Remove(semester!);
+        await context.SaveChangesAsync();
+        NavigationManager.NavigateTo("/semesters");
+    }
+}

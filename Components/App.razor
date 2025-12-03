@@ -1,0 +1,85 @@
+﻿﻿
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+    <link rel="stylesheet" href="bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="app.css" />
+    <link rel="stylesheet" href="SIMS.styles.css" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css" rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <HeadOutlet />
+</head>
+
+<body>
+    <Routes />
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <script>
+        window.initStudentSelect2 = function() {
+            console.log('initStudentSelect2 called');
+            var element = $('#studentIds');
+
+            if (element.length === 0) {
+                console.log('Element not found');
+                return false;
+            }
+
+            if (element.hasClass('select2-hidden-accessible')) {
+                console.log('Destroying existing Select2');
+                element.select2('destroy');
+            }
+
+            element.select2({
+                ajax: {
+                    url: '/api/students/search',
+                    dataType: 'json',
+                    delay: 250,
+                    data: function (params) {
+                        return {
+                            q: params.term || '',
+                            page: params.page || 1
+                        };
+                    },
+                    processResults: function (data) {
+                        console.log('Students loaded:', data.length);
+                        return {
+                            results: data.map(function(item) {
+                                return {
+                                    id: item.id,
+                                    text: item.name + ' (' + item.studentId + ') - ' + item.email
+                                };
+                            })
+                        };
+                    },
+                    cache: true
+                },
+                placeholder: 'Search students...',
+                minimumInputLength: 0,
+                width: '100%'
+            });
+
+            console.log('Select2 initialized');
+            return true;
+        };
+
+        window.clearStudentSelect2 = function() {
+            var element = $('#studentIds');
+            if (element.length > 0) {
+                element.val(null).trigger('change');
+            }
+        };
+
+        window.getSelectedStudents = function() {
+            var val = $('#studentIds').val();
+            return val ? (Array.isArray(val) ? val : [val]) : [];
+        };
+    </script>
+    <script src="_framework/blazor.web.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,37 @@
+﻿@page "/courses"
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using SIMS.Data
+@inject IDbContextFactory<SIMS.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Courses</PageTitle>
+
+<div class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0"><i class="bi bi-journal-text text-primary"></i> Courses</h1>
+        <a href="courses/create" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Create New Course</a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <QuickGrid Class="table table-hover" Items="DbFactory.CreateDbContext().Courses.Include(c => c.Subject).Include(c => c.Semester).Include(c => c.Lecture)">
+                <PropertyColumn Title="Name" Property="course => course.Name" />
+                <PropertyColumn Title="Subject" Property="course => course.Subject.Name" />
+                <PropertyColumn Title="Semester" Property="course => course.Semester.Name" />
+                <PropertyColumn Title="Lecture" Property="course => course.Lecture.Name" />
+                <TemplateColumn Title="Actions" Context="course">
+                    <div class="btn-group" role="group">
+                        <a href="@($"courses/edit?id={course.Id}")" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+                        <a href="@($"courses/details?id={course.Id}")" class="btn btn-outline-info btn-sm"><i class="bi bi-info-circle"></i> Details</a>
+                        <a href="@($"courses/delete?id={course.Id}")" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i> Delete</a>
+                    </div>
+                </TemplateColumn>
+            </QuickGrid>
+        </div>
+    </div>
+</div>
+
+@code {
+    // keep pattern consistent with other pages; DbFactory used directly in grid Items
+}

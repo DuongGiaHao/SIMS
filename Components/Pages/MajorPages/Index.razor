@@ -1,0 +1,42 @@
+﻿@page "/majors"
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using SIMS.Data
+@inject IDbContextFactory<SIMS.Data.ApplicationDbContext> DbFactory
+@inject NavigationManager NavigationManager
+
+<PageTitle>Majors</PageTitle>
+
+<div class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="mb-0"><i class="bi bi-book text-primary"></i> Majors</h1>
+        <a href="majors/create" class="btn btn-primary"><i class="bi bi-plus-circle"></i> Create New Major</a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <QuickGrid Class="table table-hover" Items="DbFactory.CreateDbContext().Majors.Include(m => m.Department)">
+                <PropertyColumn Title="Name" Property="major => major.Name" />
+                <PropertyColumn Title="Department" Property="major => major.Department.Name" />
+                <TemplateColumn Title="Actions" Context="major">
+                    <div class="btn-group" role="group">
+                        <a href="@($"majors/edit?id={major.Id}")" class="btn btn-outline-primary btn-sm"><i class="bi bi-pencil"></i> Edit</a>
+                        <a href="@($"majors/details?id={major.Id}")" class="btn btn-outline-info btn-sm"><i class="bi bi-info-circle"></i> Details</a>
+                        <a href="@($"majors/delete?id={major.Id}")" class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i> Delete</a>
+                    </div>
+                </TemplateColumn>
+            </QuickGrid>
+        </div>
+    </div>
+</div>
+
+@code {
+    private ApplicationDbContext context = default!;
+
+    protected override void OnInitialized()
+    {
+        context = DbFactory.CreateDbContext();
+    }
+
+    public async ValueTask DisposeAsync() => await context.DisposeAsync();
+}
