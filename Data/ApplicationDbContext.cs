@@ -9,8 +9,10 @@ namespace SIMS.Data
         public DbSet<Department> Departments { get; set; } = null!;
         public DbSet<Subject> Subjects { get; set; } = null!;
         public DbSet<Major> Majors { get; set; } = null!;
+        public DbSet<SIMS.Data.Course> Course { get; set; } = default!;
+        public DbSet<ApplicationUser> ApplicationUsers { get; set; } = default!;
         public DbSet<Course> Courses { get; set; } = null!;
-        public DbSet<Enrollment> Enrollments { get; set; } = null!;
+        public DbSet<Enrollment> Enrollments { get; set; } = default!;
         public DbSet<Grade> Grades { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
