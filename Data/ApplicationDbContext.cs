@@ -11,6 +11,7 @@ namespace SIMS.Data
         public DbSet<Major> Majors { get; set; } = null!;
         public DbSet<Course> Courses { get; set; } = null!;
         public DbSet<Enrollment> Enrollments { get; set; } = null!;
+        public DbSet<Grade> Grades { get; set; } = default!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -26,7 +27,25 @@ namespace SIMS.Data
                 .HasOne(e => e.Course)
                 .WithMany()
                 .HasForeignKey(e => e.CourseId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Grade>()
+                .HasOne(g => g.Enrollment)
+                .WithMany()
+                .HasForeignKey(g => g.EnrollmentId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<Grade>()
+                .Property(g => g.MidtermScore)
+                .HasPrecision(5, 2);
+
+            modelBuilder.Entity<Grade>()
+                .Property(g => g.FinalScore)
+                .HasPrecision(5, 2);
+
+            modelBuilder.Entity<Grade>()
+                .Property(g => g.TotalScore)
+                .HasPrecision(5, 2);
         }
 
     }
