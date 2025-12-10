@@ -1,0 +1,305 @@
+﻿@page "/grades/import"
+@using Microsoft.EntityFrameworkCore
+@using SIMS.Data
+@using OfficeOpenXml
+@using Microsoft.AspNetCore.Components.Web
+@rendermode InteractiveServer
+@inject ApplicationDbContext Context
+@inject NavigationManager NavigationManager
+@inject IWebHostEnvironment Environment
+
+<PageTitle>Import Grade</PageTitle>
+
+<h1>Import Grade</h1>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h4>Upload Excel File</h4>
+            </div>
+            <div class="card-body">
+                @if (!string.IsNullOrEmpty(errorMessage))
+                {
+                    <div class="alert alert-danger">@errorMessage</div>
+                }
+
+                @if (!string.IsNullOrEmpty(successMessage))
+                {
+                    <div class="alert alert-success">@successMessage</div>
+                }
+
+                <div class="mb-3">
+                    <label for="fileInput" class="form-label">Select Excel File:</label>
+                    <InputFile id="fileInput" OnChange="HandleFileSelected" class="form-control" accept=".xlsx,.xls" />
+                    @if (selectedFile != null)
+                    {
+                        <small class="text-success">File selected: @selectedFile.Name (@selectedFile.Size bytes)</small>
+                    }
+                </div>
+
+                <div class="mb-3">
+                    <button type="button" class="btn btn-primary" @onclick="ImportGrades">
+                        @if (isProcessing)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2"></span>
+                            <span>Importing...</span>
+                        }
+                        else
+                        {
+                            <span>Import Grades</span>
+                        }
+                    </button>
+                    <a href="/grades" class="btn btn-secondary">Cancel</a>
+                </div>
+
+                <div class="mt-4">
+                    <h5>Download Template</h5>
+                    <p>Download the Excel template to ensure your file has the correct format:</p>
+                    <a href="/template/grade_import_template.xlsx" download class="btn btn-success">Download Template</a>
+                </div>
+
+                <div class="mt-4">
+                    <h5>Import Format</h5>
+                    <p>The Excel file should contain the following columns:</p>
+                    <ul>
+                        <li><strong>EnrollmentId</strong>: The enrollment ID</li>
+                        <li><strong>StudentCode</strong>: The student code</li>
+                        <li><strong>MidtermScore</strong>: Midterm score (0-100)</li>
+                        <li><strong>FinalScore</strong>: Final score (0-100)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@if (importResults.Any())
+{
+    <div class="card mt-3">
+        <div class="card-header">
+            <h4>Import Results</h4>
+        </div>
+        <div class="card-body">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Row</th>
+                        <th>Status</th>
+                        <th>Message</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var result in importResults)
+                    {
+                        <tr class="@(result.Success ? "table-success" : "table-danger")">
+                            <td>@result.RowNumber</td>
+                            <td>@(result.Success ? "Success" : "Failed")</td>
+                            <td>@result.Message</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    private IBrowserFile? selectedFile;
+    private bool isProcessing = false;
+    private string? errorMessage;
+    private string? successMessage;
+    private List<ImportResult> importResults = new();
+
+    protected override void OnInitialized()
+    {
+        ExcelPackage.LicenseContext = LicenseContext.NonCommercial;
+    }
+
+    private void HandleFileSelected(InputFileChangeEventArgs e)
+    {
+        selectedFile = e.File;
+        errorMessage = null;
+        successMessage = null;
+        importResults.Clear();
+        successMessage = $"File selected: {selectedFile?.Name}";
+    }
+
+
+    private async Task ImportGrades()
+    {
+        try
+        {
+            if (selectedFile == null)
+            {
+                errorMessage = "Please select an Excel file first.";
+                StateHasChanged();
+                return;
+            }
+
+            if (isProcessing) return;
+
+            isProcessing = true;
+            errorMessage = null;
+            successMessage = null;
+            importResults.Clear();
+            StateHasChanged();
+
+            await Task.Delay(100);
+
+            using var memoryStream = new MemoryStream();
+            await selectedFile.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024).CopyToAsync(memoryStream);
+            memoryStream.Position = 0;
+
+            using var package = new ExcelPackage(memoryStream);
+            var worksheet = package.Workbook.Worksheets[0];
+
+            var rowCount = worksheet.Dimension?.Rows ?? 0;
+            if (rowCount < 2)
+            {
+                errorMessage = "The Excel file is empty or has no data rows.";
+                isProcessing = false;
+                StateHasChanged();
+                return;
+            }
+
+            int successCount = 0;
+            int errorCount = 0;
+
+            for (int row = 2; row <= rowCount; row++)
+            {
+                try
+                {
+                    var enrollmentIdText = worksheet.Cells[row, 1].Value?.ToString();
+                    var studentCode = worksheet.Cells[row, 2].Value?.ToString();
+                    var midtermScoreText = worksheet.Cells[row, 3].Value?.ToString();
+                    var finalScoreText = worksheet.Cells[row, 4].Value?.ToString();
+
+                    if (string.IsNullOrWhiteSpace(enrollmentIdText))
+                    {
+                        importResults.Add(new ImportResult
+                        {
+                            RowNumber = row,
+                            Success = false,
+                            Message = "Enrollment ID is required"
+                        });
+                        errorCount++;
+                        continue;
+                    }
+
+                    if (!int.TryParse(enrollmentIdText, out int enrollmentId))
+                    {
+                        importResults.Add(new ImportResult
+                        {
+                            RowNumber = row,
+                            Success = false,
+                            Message = "Invalid Enrollment ID"
+                        });
+                        errorCount++;
+                        continue;
+                    }
+
+                    var enrollment = await Context.Enrollments
+                        .Include(e => e.Student)
+                        .FirstOrDefaultAsync(e => e.Id == enrollmentId);
+
+                    if (enrollment == null)
+                    {
+                        importResults.Add(new ImportResult
+                        {
+                            RowNumber = row,
+                            Success = false,
+                            Message = $"Enrollment ID {enrollmentId} not found"
+                        });
+                        errorCount++;
+                        continue;
+                    }
+
+                    decimal? midtermScore = null;
+                    decimal? finalScore = null;
+
+                    if (!string.IsNullOrWhiteSpace(midtermScoreText) && decimal.TryParse(midtermScoreText, out var midScore))
+                        midtermScore = midScore;
+
+                    if (!string.IsNullOrWhiteSpace(finalScoreText) && decimal.TryParse(finalScoreText, out var finScore))
+                        finalScore = finScore;
+
+                    decimal? totalScore = null;
+                    if (midtermScore.HasValue && finalScore.HasValue)
+                    {
+                        totalScore = (midtermScore.Value * 0.4m) + (finalScore.Value * 0.6m);
+                    }
+
+                    string? letterGrade = null;
+                    if (finalScore.HasValue)
+                    {
+                        letterGrade = finalScore.Value > 90 ? "D" :
+                                     finalScore.Value >= 80 ? "M" :
+                                     finalScore.Value >= 65 ? "P" : "F";
+                    }
+
+                    var existingGrade = await Context.Grades
+                        .FirstOrDefaultAsync(g => g.EnrollmentId == enrollmentId);
+
+                    if (existingGrade != null)
+                    {
+                        existingGrade.MidtermScore = midtermScore;
+                        existingGrade.FinalScore = finalScore;
+                        existingGrade.TotalScore = totalScore;
+                        existingGrade.LetterGrade = letterGrade;
+                        existingGrade.UpdatedDate = DateTime.Now;
+                    }
+                    else
+                    {
+                        var newGrade = new Grade
+                        {
+                            EnrollmentId = enrollmentId,
+                            MidtermScore = midtermScore,
+                            FinalScore = finalScore,
+                            TotalScore = totalScore,
+                            LetterGrade = letterGrade,
+                            UpdatedDate = DateTime.Now
+                        };
+                        Context.Grades.Add(newGrade);
+                    }
+
+                    await Context.SaveChangesAsync();
+
+                    importResults.Add(new ImportResult
+                    {
+                        RowNumber = row,
+                        Success = true,
+                        Message = $"Grade imported successfully for {enrollment.Student.StudentId}"
+                    });
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    importResults.Add(new ImportResult
+                    {
+                        RowNumber = row,
+                        Success = false,
+                        Message = $"Error: {ex.Message}"
+                    });
+                    errorCount++;
+                }
+            }
+
+            successMessage = $"Import completed: {successCount} successful, {errorCount} failed";
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Unexpected error: {ex.Message}";
+            isProcessing = false;
+            StateHasChanged();
+        }
+    }
+
+    private class ImportResult
+    {
+        public int RowNumber { get; set; }
+        public bool Success { get; set; }
+        public string Message { get; set; } = string.Empty;
+    }
+}

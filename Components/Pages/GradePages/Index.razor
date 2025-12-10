@@ -1,0 +1,41 @@
+﻿@page "/grades"
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.AspNetCore.Components.QuickGrid
+@using SIMS.Data
+@rendermode InteractiveServer
+@inject ApplicationDbContext Context
+@inject NavigationManager NavigationManager
+
+<PageTitle>Grade Management</PageTitle>
+
+<h1>Grade Management</h1>
+
+<p>
+    <a href="grades/import" class="btn btn-primary">Import Grade</a>
+</p>
+
+<QuickGrid Class="table" Items="FilteredEnrollments">
+    <PropertyColumn Property="e => e.Id" Title="Enrollment ID" />
+    <PropertyColumn Property="e => e.Student.StudentId" Title="Student Code" />
+    <PropertyColumn Property="e => e.Student.Name" Title="Student Name" />
+    <PropertyColumn Property="e => e.Course.Name" Title="Course" />
+    <PropertyColumn Property="e => e.Course.Subject.Name" Title="Subject" />
+@*     <PropertyColumn Property="e => e.EnrollmentDate" Title="Enrollment Date" Format="yyyy-MM-dd" />
+    <PropertyColumn Property="e => e.Status" Title="Status" /> *@
+
+    <TemplateColumn Context="enrollment">
+        <a href="@($"grades/view?id={enrollment.Id}")" class="btn btn-sm btn-info">View Grade</a>
+    </TemplateColumn>
+</QuickGrid>
+
+@code {
+    private IQueryable<Enrollment>? FilteredEnrollments;
+
+    protected override void OnInitialized()
+    {
+        FilteredEnrollments = Context.Enrollments
+            .Include(e => e.Student)
+            .Include(e => e.Course)
+                .ThenInclude(c => c.Subject);
+    }
+}
